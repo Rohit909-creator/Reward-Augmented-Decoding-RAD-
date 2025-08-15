@@ -159,7 +159,64 @@ class Acknowledger():
             "method": "RAD" if enable_rad else "Standard"
         }
         
+
+def detect_and_correct_hallucination(self, question, full_context, current_step, max_tokens, correction_threshold=0.3):
+    """
+    Detect hallucination by comparing expected vs actual trajectory
+    Returns: (should_correct, correction_prompt, severity)
+    """
+    # Only check after we have enough context (your 50% rule)
+    if current_step < max_tokens * 0.5:
+        return False, "", 0.0
     
+    # Split context for analysis (your 50/25/25 idea)
+    tokens = self.tokenizer.encode(full_context)
+    total_generated = len(tokens)
+    
+    if total_generated < 20:  # Need minimum context
+        return False, "", 0.0
+    
+    # Get the "stable" prefix (first 50% of generation)
+    prefix_length = int(total_generated * 0.5)
+    recent_length = min(int(total_generated * 0.25), total_generated - prefix_length)
+    
+    prefix_tokens = tokens[:prefix_length]
+    recent_tokens = tokens[prefix_length:prefix_length + recent_length]
+    
+    prefix_text = self.tokenizer.decode(prefix_tokens)
+    recent_text = self.tokenizer.decode(recent_tokens)
+    
+    # Get expected trajectory reward (what SHOULD come next)
+    expected_score = self.get_reward_score(question, prefix_text)
+    
+    # Get actual trajectory reward (what DID come next)  
+    actual_score = self.get_reward_score(question, prefix_text + recent_text)
+    
+    # Calculate divergence (your core insight!)
+    reward_divergence = expected_score - actual_score
+    
+    # Additional semantic divergence check
+    # Check if recent generation is semantically consistent
+    consistency_score = self.get_reward_score(question, recent_text)  # Standalone coherence
+    
+    # Combined divergence metric
+    total_divergence = reward_divergence + max(0, expected_score - consistency_score) * 0.5
+    
+    # Determine if correction is needed
+    should_correct = total_divergence > correction_threshold
+    
+    # Determine correction type based on severity
+    if total_divergence > correction_threshold * 2:
+        correction_prompt = " Oh sorry, let me correct that hallucination and provide accurate information: "
+        severity = "hard"
+    elif should_correct:
+        correction_prompt = " Actually, let me clarify that better: "
+        severity = "soft"
+    else:
+        correction_prompt = ""
+        severity = "none"
+    
+    return should_correct, correction_prompt, total_divergence    
 
     
     
@@ -189,6 +246,10 @@ if __name__ == "__main__":
         enable_rad=False,
         top_k=20
     )
+    
+    with open("Generations.txt", "a") as f:
+        s = f"RAD Generation: {rad_result['generated_text']}\n\nStandard Generation: {std_result['generated_text']}\nRAD_Final Score: {rad_result['scores'][-1]}\nStandard Final Score: {std_result['scores'][-1]}"
+        f.write(s)
     
     # Analysis and visualization
     print(f"\n📊 Results:")

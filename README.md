@@ -2,4 +2,7 @@
 A simple implementation of the paper DeCore, to prevent hallucinations.
 
 
-I think I should use RAD or Critic Guided Decoding for this project. Cause I already looked at the graphs the reward model which was produced in realtime generation using reward model.
+The RAD Based decoding method seems promising, and it works surprisingly well with the parameters top_k=20 , top_p=0.1, temperature=1.0 and alpha = 1.0-1.5
+
+
+But for the actual thing, the theory of self correction the way humans hallucinate and account for there hallucinated mistake.
