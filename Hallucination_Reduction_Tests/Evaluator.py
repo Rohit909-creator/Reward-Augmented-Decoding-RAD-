@@ -143,6 +143,33 @@ class Acknowledger():
                     score = reward_logits.item()
                 scores.append(score)
                 steps.append(i)
+                
+                # HALLUCINATION DETECTION AND SELF-CORRECTION
+                if i > 5 and i % 10 == 0:  # Check every 10 tokens after initial 5
+                    should_correct, correction_prompt, divergence = self.detect_and_correct_hallucination(
+                        text, context, i, max_new_tokens, correction_threshold=0.5
+                    )
+                    
+                    if should_correct:
+                        print(f"\n🚨 Divergence detected: {divergence:.3f}")
+                        print(f"🔧 Correction: ", end="", flush=True)
+                        
+                        # Add correction prompt to the context
+                        # correction_tokens = self.tokenizer.encode(correction_prompt)
+                        # correction_tensor = torch.tensor(correction_tokens, device=input_ids.device).unsqueeze(0)
+                        
+                        # # Append correction to input sequence
+                        # input_ids = torch.cat([input_ids, correction_tensor], dim=1)
+                        # attention_mask = torch.cat([attention_mask, torch.ones_like(correction_tensor)], dim=1)
+                        
+                        # # Print the correction prompt
+                        # print(correction_prompt, end="", flush=True)
+                        
+                        # # Update context
+                        # context = self.tokenizer.decode(input_ids[0, inputs["input_ids"].shape[1]:])
+                        
+                        # # Continue generation from corrected state
+                        # continue
 
         print()  # New line after generation
         
@@ -224,7 +251,20 @@ if __name__ == "__main__":
     
     ack = Acknowledger(RewardModel=rm)  # Pass the reward model
     
-    question = "who is the president of mars?"
+    question = """
+            Hey how are you doing, Addressed
+        So I wrote book called Attention the revolutionary AI algorithm, not Addressed
+        So I wrote book called Attention the revolutionary AI algorithm can you suggest another topic I should write a book on, Addressed
+        can you please wait I gotta get my papers to look at the notice, Addressed
+        I gotta find it Ummm where did it go, waiting
+        Let me check that on my laptop after that I will get to you, waiting
+        The sky is beautiful today isn't it, Addressed
+        Sorry I can't answer the phone right now can you call back later, Addressed
+
+        So here "waiting" signal is for when the AI doesn't have to reply cause AI is not being addressed, and "Addressed" is obviously for when AI is being addressed by the user, and "Not Addressed" when the AI is not addressed and the person is just blabbering about stuff,
+        
+        I want you to generate more augmented examples of the above data.
+        """
     print(f"🔬 Question: {question}")
     print("="*60)
     
